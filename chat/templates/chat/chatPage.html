@@ -1,0 +1,483 @@
+
+
+
+
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeartHive ChatApp</title>
+    <link rel="stylesheet" href="{% static 'chat/chat.css' %}">
+    <style>
+        /* General Page Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff; /* Light blue background */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header Styling */
+        .main-header {
+            background-color: #4caf50;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-buttons {
+            display: flex;
+            gap: 10px;
+        }
+
+        .header-buttons a {
+            text-decoration: none;
+            color: white;
+            background-color: #45a049;
+            padding: 8px 12px;
+            border-radius: 5px;
+            font-weight: bold;
+        }
+
+        .header-buttons a:hover {
+            background-color: #3e8e41;
+        }
+
+        /* Footer Styling */
+        .main-footer {
+            background-color: #4caf50;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+            margin-top: auto;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 20px;
+        }
+
+        .main-footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+            background-color: #45a049;
+            padding: 8px 12px;
+            border-radius: 5px;
+        }
+
+        .main-footer a:hover {
+            background-color: #3e8e41;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            width: 400px;
+            height: 600px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 20px auto;
+        }
+
+        .chat-header {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+
+        .chat-footer {
+            display: flex;
+            padding: 10px;
+            background-color: #f3f4f6;
+            border-top: 1px solid #ddd;
+        }
+
+        .chat-footer input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            outline: none;
+        }
+
+        .chat-footer button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        .chat-footer button:hover {
+            background-color: #45a049;
+        }
+
+        .chat-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #e0e0e0;
+            width: fit-content;
+            max-width: 70%;
+        }
+
+        .chat-message.user {
+            background-color: #4caf50;
+            color: white;
+            margin-left: auto;
+        }
+
+        .logout-link {
+            display: block;
+            text-align: center;
+            margin: 10px;
+            text-decoration: none;
+            color: #4caf50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="main-header">
+        <div>HeartHive ChatApp Stay Connected</div>
+        <div class="header-buttons">
+            {% if not request.user.is_authenticated %}
+                <a href="{% url 'register-user' %}">Register</a>
+                <a href="{% url 'login-user' %}">Login</a>
+            {% else %}
+                <a href="{% url 'logout-user' %}">Logout</a>
+            {% endif %}
+        </div>
+    </header>
+
+    <!-- Chat App Content -->
+    <div class="chat-container">
+        <div class="chat-header">
+            Hello, Welcome to my chat site! {{ request.user }}
+        </div>
+
+        {% if request.user.is_authenticated %}
+        <a class="logout-link" href="{% url 'logout-user' %}">Logout</a>
+        {% endif %}
+
+        <div class="chat-body" id="id_chat_item_container" style="font-size: 20px;">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="chat-footer">
+            <input type="text" id="id_message_send_input" placeholder="Type your message..." />
+            <button id="id_message_send_button">Send</button>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="main-footer">
+        {% if not request.user.is_authenticated %}
+            <a href="{% url 'register-user' %}">Register</a>
+            <a href="{% url 'login-user' %}">Login</a>
+        {% else %}
+            <a href="{% url 'logout-user' %}">Logout</a>
+        {% endif %}
+    </footer>
+
+    <script>
+        const chatSocket = new WebSocket("ws://" + window.location.host + "/");
+
+        chatSocket.onopen = function (e) {
+            console.log("The connection was setup successfully!");
+        };
+
+        chatSocket.onclose = function (e) {
+            console.log("Something unexpected happened!");
+        };
+
+        document.querySelector("#id_message_send_input").focus();
+        document.querySelector("#id_message_send_input").onkeyup = function (e) {
+            if (e.keyCode == 13) {
+                document.querySelector("#id_message_send_button").click();
+            }
+        };
+
+        document.querySelector("#id_message_send_button").onclick = function (e) {
+            var messageInput = document.querySelector("#id_message_send_input").value;
+            chatSocket.send(
+                JSON.stringify({
+                    message: messageInput,
+                    username: "{{ request.user.username }}",
+                })
+            );
+        };
+
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            var div = document.createElement("div");
+            div.classList.add("chat-message");
+            if (data.username === "{{ request.user.username }}") {
+                div.classList.add("user");
+            }
+            div.innerHTML = data.username + " : " + data.message;
+            document.querySelector("#id_message_send_input").value = "";
+            document.querySelector("#id_chat_item_container").appendChild(div);
+
+            // Auto-scroll to the bottom of the chat body
+            const chatBody = document.querySelector("#id_chat_item_container");
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+    </script>
+</body>
+</html> 
+
+
+
+
+
+
+{% comment %} 
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>HeartHive ChatApp</title>
+    <link rel="stylesheet" href="{% static 'chat/chat.css' %}">
+    <style>
+        /* General Page Styling */
+        body {
+            font-family: 'Arial', sans-serif;
+            background-color: #f0f8ff; /* Light blue background */
+            margin: 0;
+            padding: 0;
+            display: flex;
+            flex-direction: column;
+            min-height: 100vh;
+        }
+
+        /* Header Styling */
+        .main-header {
+            background-color: #4caf50;
+            color: white;
+            padding: 15px 20px;
+            text-align: center;
+            font-size: 24px;
+            font-weight: bold;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+        }
+
+        /* Footer Styling */
+        .main-footer {
+            background-color: #4caf50;
+            color: white;
+            text-align: center;
+            padding: 10px 0;
+            margin-top: auto;
+            box-shadow: 0 -2px 5px rgba(0, 0, 0, 0.2);
+            width: 100%;
+        }
+
+        .main-footer a {
+            color: white;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        /* Chat Container */
+        .chat-container {
+            width: 400px;
+            height: 600px;
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            margin: 20px auto;
+        }
+
+        .chat-header {
+            background-color: #4caf50;
+            color: white;
+            padding: 10px;
+            text-align: center;
+            font-size: 18px;
+            font-weight: bold;
+        }
+
+        .chat-body {
+            flex: 1;
+            padding: 15px;
+            overflow-y: auto;
+            background-color: #f9f9f9;
+        }
+
+        .chat-footer {
+            display: flex;
+            padding: 10px;
+            background-color: #f3f4f6;
+            border-top: 1px solid #ddd;
+        }
+
+        .chat-footer input {
+            flex: 1;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+            margin-right: 10px;
+            outline: none;
+        }
+
+        .chat-footer button {
+            background-color: #4caf50;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            padding: 10px 15px;
+            cursor: pointer;
+        }
+
+        .chat-footer button:hover {
+            background-color: #45a049;
+        }
+
+        .chat-message {
+            margin: 10px 0;
+            padding: 10px;
+            border-radius: 5px;
+            background-color: #e0e0e0;
+            width: fit-content;
+            max-width: 70%;
+        }
+
+        .chat-message.user {
+            background-color: #4caf50;
+            color: white;
+            margin-left: auto;
+        }
+
+        .logout-link {
+            display: block;
+            text-align: center;
+            margin: 10px;
+            text-decoration: none;
+            color: #4caf50;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <!-- Header Section -->
+    <header class="main-header">
+        HeartHive ChatApp Stay Connected
+    </header> 
+
+
+    
+
+    <!-- Chat App Content -->
+    <div class="chat-container">
+        <div class="chat-header">
+            Hello, Welcome to my chat site! {{ request.user }}
+        </div>
+
+        {% if request.user.is_authenticated %}
+        <a class="logout-link" href="{% url 'logout-user' %}">Logout</a>
+        {% endif %}
+
+        <div class="chat-body" id="id_chat_item_container" style="font-size: 20px;">
+            <!-- Messages will appear here -->
+        </div>
+
+        <div class="chat-footer">
+            <input type="text" id="id_message_send_input" placeholder="Type your message..." />
+            <button id="id_message_send_button">Send</button>
+        </div>
+    </div>
+
+    <!-- Footer Section -->
+    <footer class="main-footer">
+        &copy; 2024 Chat App | <a href="#">Privacy Policy</a>
+    </footer>
+
+    
+
+    <script>
+        const chatSocket = new WebSocket("ws://" + window.location.host + "/");
+
+        chatSocket.onopen = function (e) {
+            console.log("The connection was setup successfully!");
+        };
+
+        chatSocket.onclose = function (e) {
+            console.log("Something unexpected happened!");
+        };
+
+        document.querySelector("#id_message_send_input").focus();
+        document.querySelector("#id_message_send_input").onkeyup = function (e) {
+            if (e.keyCode == 13) {
+                document.querySelector("#id_message_send_button").click();
+            }
+        };
+
+        document.querySelector("#id_message_send_button").onclick = function (e) {
+            var messageInput = document.querySelector("#id_message_send_input").value;
+            chatSocket.send(
+                JSON.stringify({
+                    message: messageInput,
+                    username: "{{ request.user.username }}",
+                })
+            );
+        };
+
+        chatSocket.onmessage = function (e) {
+            const data = JSON.parse(e.data);
+            var div = document.createElement("div");
+            div.classList.add("chat-message");
+            if (data.username === "{{ request.user.username }}") {
+                div.classList.add("user");
+            }
+            div.innerHTML = data.username + " : " + data.message;
+            document.querySelector("#id_message_send_input").value = "";
+            document.querySelector("#id_chat_item_container").appendChild(div);
+
+            // Auto-scroll to the bottom of the chat body
+            const chatBody = document.querySelector("#id_chat_item_container");
+            chatBody.scrollTop = chatBody.scrollHeight;
+        };
+    </script>
+</body>
+</html>  {% endcomment %}
+
+
+
+
+
